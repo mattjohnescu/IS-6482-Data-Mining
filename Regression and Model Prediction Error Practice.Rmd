@@ -1,0 +1,331 @@
+---
+title: "A3_Johnescu_Matthew"
+author: "Matt Johnescu"
+date: "2024-03-07"
+output: html_document
+---
+
+Code Chunk 1:
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+#1.A
+#installing missing packages
+options(repos = c(CRAN = "https://cran.r-project.org"))
+install.packages("caret")
+install.packages("C50")
+install.packages("matrixStats")
+install.packages("knitr")
+install.packages("Rtools")
+install.packages("C:/Users/johne/Downloads/htmltools_0.5.7.zip", repos = NULL, type = "win.binary")
+install.packages("rminer")
+install.packages("rJava")
+install.packages("RWeka")
+
+
+Sys.setenv(JAVA_HOME= "C:/Program Files /Java/jre-1.8")
+
+#loading Packages
+library(rJava)
+library(RWeka)
+library(rmarkdown)
+library(caret)
+library(C50)
+library(matrixStats)
+library(knitr)
+library(psych)
+library(rpart)
+library(RWeka)
+library(htmltools)
+library(rminer)
+
+#Loading Data Set
+
+video_game_sales <- read.csv(file = "C:/Users/johne/Downloads/sales_filtered-1.csv")
+summary(video_game_sales)
+str(video_game_sales)
+
+#Transforming all non-numeric variables to factor variables
+
+for(col in names(video_game_sales)) {
+  if(!is.numeric(video_game_sales[[col]]) && col != "Name") {
+    video_game_sales[[col]] <- as.factor(video_game_sales[[col]])
+  }
+}
+
+#Show the summary of the data
+summary(video_game_sales)
+
+#Use str() to display the structure and data types of the modified dataframe
+str(video_game_sales)
+
+#1.B
+#Pairs panels showing distribution pf numeric values
+#Subset the dataframe to only include numeric variables
+numeric_data <- video_game_sales[sapply(video_game_sales, is.numeric)]
+summary(numeric_data)
+
+#Use pairs.panels to show the distributions and correlations
+pairs.panels(numeric_data)
+
+#1.C
+#Building Linear model for all varibles except name
+video_game_sales_transformed <- video_game_sales
+video_game_sales_transformed[sapply(video_game_sales_transformed, is.factor)] <- lapply(video_game_sales_transformed[sapply(video_game_sales_transformed, is.factor)], function(x) as.numeric(as.factor(x)))
+
+whole_model <- lm(Global_Sales ~ . - Name, data = video_game_sales_transformed)
+
+#1.D
+#Partitioning Data Set
+#Set seed for reproducibility
+set.seed(112)
+
+#Calculate the number of rows to include in the training set
+training_size <- floor(0.7 * nrow(video_game_sales))
+
+#Randomly sample row indices for the training set
+training_indices <- sample(seq_len(nrow(video_game_sales)), size = training_size)
+
+#Create the training set and remove the 'Name' variable
+video_game_train <- video_game_sales[training_indices, ]
+video_game_train <- video_game_train[, !names(video_game_train) %in% "Name"]
+
+#Create the test set by excluding the training set indices and remove the 'Name' variable
+video_game_test <- video_game_sales[-training_indices, ]
+video_game_test <- video_game_test[, !names(video_game_test) %in% "Name"]
+
+#1.E
+#Summaries
+#Summary of the target variable in the training set
+summary(video_game_train$Global_Sales)
+
+#Summary of predictors in the training set
+summary(video_game_train[, !names(video_game_train) %in% "Global_Sales"])
+
+#Summary of the target variable in the test set
+summary(video_game_test$Global_Sales)
+
+#Summary of predictors in the test set
+summary(video_game_test[, !names(video_game_test) %in% "Global_Sales"])
+
+
+```
+
+Code Chunk 2:
+
+```{r}
+#2.A
+video_game_train <- video_game_train[, !names(video_game_train) %in% "Name"]
+video_game_test <- video_game_test[, !names(video_game_test) %in% "Name"]
+
+
+#Linear Model (lm)
+lm_model <- lm(Global_Sales ~ ., data = video_game_train)
+summary(lm_model)
+
+#Rpart Model
+rpart_model <- rpart(Global_Sales ~ ., data = video_game_train)
+summary(rpart_model)
+
+#M5P Model Tree 
+M5P_model <- M5P(Global_Sales ~ ., data = video_game_train)
+M5P_model
+
+#2.B
+#Generate predictions for the training set
+predictions_lm_train <- predict(lm_model, newdata = video_game_train)
+predictions_rpart_train <- predict(rpart_model, newdata = video_game_train)
+predictions_m5p_train <- predict(M5P_model, newdata = video_game_train)
+
+
+#Generate predictions for the test set
+predictions_lm_test <- predict(lm_model, newdata = video_game_test)
+predictions_rpart_test <- predict(rpart_model, newdata = video_game_test)
+predictions_m5p_test <- predict(M5P_model, newdata = video_game_test)
+
+#Training target and test target
+train_target <- video_game_train$Global_Sales
+test_target <- video_game_test$Global_Sales
+
+
+#LM Model Performance
+#Training Data
+lm_train_metrics <- mmetric(train_target, predictions_lm_train, c("MAE","RMSE","MAPE","RMSPE","RAE", "RRSE","COR", "R2"))
+#Test Data
+lm_test_metrics <- mmetric(test_target, predictions_lm_test, c("MAE","RMSE","MAPE","RMSPE","RAE", "RRSE","COR", "R2"))
+
+#Rpart Model Performance
+#Training Data
+rpart_train_metrics <- mmetric(train_target, predictions_rpart_train, c("MAE","RMSE","MAPE","RMSPE","RAE", "RRSE","COR", "R2"))
+#Test Data
+rpart_test_metrics <- mmetric(test_target, predictions_rpart_test, c("MAE","RMSE","MAPE","RMSPE","RAE", "RRSE","COR", "R2"))
+
+#M5P Model Performance
+#Training Data
+m5p_train_metrics <- mmetric(train_target, predictions_m5p_train, c("MAE","RMSE","MAPE","RMSPE","RAE", "RRSE","COR", "R2"))
+#Test Data
+m5p_test_metrics <- mmetric(test_target, predictions_m5p_test, c("MAE","RMSE","MAPE","RMSPE","RAE", "RRSE","COR", "R2"))
+
+#Printing Metrics for review
+print(lm_train_metrics)
+print(lm_test_metrics)
+print(rpart_train_metrics)
+print(rpart_test_metrics)
+print(m5p_train_metrics)
+print(m5p_test_metrics)
+
+
+```
+
+Code Chunk 3:
+
+```{r}
+
+#3.A
+#Define the cross-validation function
+cv_function <- function(df, target_name, nFolds, seedVal, metrics_list) {
+  set.seed(seedVal) #For reporducability 
+  
+  #Preparing the dataset
+  df <- df[, !names(df) %in% c("Name")] 
+  folds <- createFolds(df[[target_name]], k = nFolds, list = TRUE)
+  
+  #Initializing storage for results
+  results <- list(lm = list(), rpart = list(), M5P = list())
+  
+  #Models to be evaluated
+  model_types <- c("lm", "rpart", "M5P")
+  
+  for (model_type in model_types) {
+    fold_metrics <- matrix(nrow = nFolds, ncol = length(metrics_list))
+    colnames(fold_metrics) <- metrics_list
+    
+    #Cross-validation loop
+    for (i in seq_along(folds)) {
+      train_indices <- setdiff(1:nrow(df), folds[[i]])
+      test_indices <- folds[[i]]
+      
+      train_data <- df[train_indices, ]
+      test_data <- df[test_indices, ]
+      
+      #Fit model based on model type
+      if (model_type == "lm") {
+        model_fit <- lm(Global_Sales ~ ., data = train_data)
+      } else if (model_type == "rpart") {
+        model_fit <- rpart(Global_Sales ~ ., data = train_data)
+      } else if (model_type == "M5P") {
+        model_fit <- M5P(Global_Sales ~ ., data = train_data)
+      }
+      
+      predictions <- predict(model_fit, newdata = test_data)
+      
+      #Calculate metrics using rminer's mmetric
+      actual <- test_data[[target_name]]
+      for (j in seq_along(metrics_list)) {
+        metric_name <- metrics_list[j]
+        fold_metrics[i, j] <- mmetric(actual, predictions, metric = metric_name)
+      }
+    }
+    
+    #Calculate mean and SD for each metric
+    metrics_mean <- colMeans(fold_metrics)
+    metrics_sd <- apply(fold_metrics, 2, sd)
+    
+    results[[model_type]]$Metrics <- fold_metrics
+    results[[model_type]]$Mean <- metrics_mean
+    results[[model_type]]$SD <- metrics_sd
+  }
+  
+  #Printing results
+  for (model_type in model_types) {
+    cat("\n", model_type, "Model Results:\n")
+    metrics <- results[[model_type]]$Metrics
+    means <- results[[model_type]]$Mean
+    sds <- results[[model_type]]$SD
+    
+    print(kable(metrics, caption = paste(model_type, "Metrics per Fold")))
+    print(kable(t(as.data.frame(means)), caption = paste(model_type, "Mean Metrics")))
+    print(kable(t(as.data.frame(sds)), caption = paste(model_type, "SD of Metrics")))
+  }
+}
+
+#Metrics list
+metrics_list <- c("MAE", "RMSE", "MAPE", "RMSPE", "RAE", "RRSE", "COR","R2")
+
+#3.B
+#Adjust the cv_function call to use 5 folds
+cv_function(video_game_train, "Global_Sales", 5, 123, metrics_list)
+
+```
+Code Chunk 4: 
+
+```{r}
+#4,A
+#Adding squared column for User Count
+
+video_game_sales$User_Count_Squared <- video_game_sales$User_Count^2
+
+#4.B
+#Making Model
+lm_model_full <- lm(Global_Sales ~ ., data = video_game_sales)
+
+#Printing model
+summary(lm_model_full)
+
+#4.C
+names(video_game_sales) <- make.names(names(video_game_sales), unique = TRUE)
+#Checking for non-ASCII characters in all character columns
+lapply(video_game_sales[sapply(video_game_sales, is.character)], function(x) {
+  any(stringi::stri_detect_regex(x, "[\x80-\xF7]"))
+})
+
+#Removing non-ASCII characters from character columns
+video_game_sales <- data.frame(lapply(video_game_sales, function(x) {
+  if(is.character(x)) iconv(x, to = "ASCII", sub = "") else x
+}))
+
+#Defining metrics_list
+metrics_list <- c("MAE", "RMSE", "MAPE", "RMSPE", "RAE", "RRSE", "COR", "R2")
+
+#5-fold cross-validation for the video_game_sales dataset
+cv_function(video_game_sales, "Global_Sales", 5, 123, metrics_list)
+
+```
+Code Chunk 5: 
+```{r}
+#5.A
+#Add a new column for the natural log of User_Count
+video_game_sales$log_User_Count <- log(video_game_sales$User_Count)
+
+#Checking the first few rows to verify the new column has been added
+head(video_game_sales[, c("User_Count", "log_User_Count")])
+#5.B
+#Remove User_Count from the dataset for the model fitting
+video_game_sales_model_data <- video_game_sales[, !names(video_game_sales) %in% c("User_Count")]
+
+#Build the linear model using Global_Sales as the target variable
+lm_model <- lm(Global_Sales ~ ., data = video_game_sales_model_data)
+
+#5.C
+#Ensure 'log_User_Count' is in the dataset and 'User_Count' is excluded
+video_game_sales$log_User_Count <- log(video_game_sales$User_Count + 1)
+video_game_sales <- video_game_sales[, !names(video_game_sales) %in% c("User_Count")]
+
+#Ensure the metrics_list is defined
+metrics_list <- c("MAE", "RMSE", "MAPE", "RMSPE", "RAE", "RRSE", "COR", "R2")
+
+#Execute the 5-fold cross-validation for the video_game_sales dataset
+cv_function(video_game_sales, "Global_Sales", 5, 123, metrics_list)
+
+```
+
+
+
+
+
+
+
+
+
