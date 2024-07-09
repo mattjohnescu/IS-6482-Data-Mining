@@ -1,0 +1,162 @@
+---
+title: "A5_Johnescu_Matthew"
+author: "Matt Johnescu"
+date: "2024-04-06"
+output: html_document
+---
+
+Code Chunk 1
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#1.A
+options(repos = c(CRAN = "https://cran.r-project.org"))
+install.packages("arules")
+
+library(RWeka)
+library(arules)
+
+
+#Loading snsbinary csv
+teensbinary <- read.csv("C:/Users/johne/Downloads/snsbinary-1.csv" , stringsAsFactors = TRUE)
+
+#1.B
+#Convert the "gradyear" variable to a factor
+teensbinary$gradyear <- factor(teensbinary$gradyear)
+#Summary:
+summary(teensbinary)
+
+#1.C
+#Cleaning Code:
+teensbinary$age <- ifelse(teensbinary$age >= 13 & teensbinary$age < 20, teensbinary$age, NA)
+teens_cleaned <- subset(teensbinary,!(is.na(teensbinary["gender"]) | is.na(teensbinary["age"])))
+teens_cleaned <- teens_cleaned[which(teens_cleaned$friends <= 400),]
+#Summary:
+summary(teens_cleaned)
+
+#1.D
+#Run K-Means clustering to create 5 clusters
+set.seed(160) 
+kmeans_result <- kmeans(teens_cleaned[, sapply(teens_cleaned, is.numeric)], centers = 5, nstart = 25)
+
+#Clustering result
+print(kmeans_result)
+
+#Function to calculate Standard deviations of each cluster
+cluster_std_devs <- sapply(1:5, function(cluster) {
+  cluster_data <- teens_cleaned[kmeans_result$cluster == cluster, sapply(teens_cleaned, is.numeric)]
+  apply(cluster_data, 2, sd, na.rm = TRUE)
+})
+
+#Standard deviations for each cluster
+print(cluster_std_devs)
+
+#1.E
+#K-Means++ clustering
+set.seed(160)
+kmeans_result <- kmeans(teens_cleaned[, sapply(teens_cleaned, is.numeric)], centers = 5, nstart = 25)
+
+#Model result
+print(kmeans_result)
+
+#Calculation for standard deviations of each cluster
+cluster_std_devs <- lapply(1:5, function(cluster_number) {
+  cluster_points <- teens_cleaned[kmeans_result$cluster == cluster_number, sapply(teens_cleaned, is.numeric)]
+  sapply(cluster_points, sd, na.rm = TRUE)
+})
+
+#Standard deviations for each cluster
+print(cluster_std_devs)
+
+
+
+```
+
+Code Chunk 2:
+```{r}
+#2.A
+Walmart_trans <- read.transactions("C:/Users/johne/Downloads/Walmart_basket-1.csv", format = "single", sep = ",", cols = c(1, 2))
+
+#2.B
+#Inspect the first 15 transactions
+inspect(Walmart_trans[1:15])
+
+#2.C
+#Using itemFrequency to calculate frequencies for all items in the dataset
+item_freqs <- itemFrequency(Walmart_trans, type = "absolute")
+
+#Sorted Items Frequency
+sorted_item_freqs <- sort(item_freqs, decreasing = TRUE)
+
+#Frequencies of the first 15 items
+top_15_items_walmart <- head(sorted_item_freqs, 15)
+print(top_15_items_walmart)
+
+
+#2.D
+#First 50 transactions
+image(Walmart_trans[1:50])
+
+#2.E
+itemFrequencyPlot(Walmart_trans, topN = 15, type = "absolute", col = "blue", las = 2, cex.names = 0.8, main = "Top 15 Most Frequent Items")
+
+```
+Code Chunk 3
+```{r}
+#3.A
+#I.
+#Support and confidence thresholds
+rules <- apriori(Walmart_trans,
+                 parameter = list(supp = 0.03, conf = 0.7, target = "rules"))
+
+#II.
+#Checking Rule Count
+print(length(rules))
+inspect(rules, order = DESC)
+
+#III.
+#Inspect the rules 
+inspect(head(rules, by = "lift"))
+
+#IV.
+#Subset rules to get those with "DAIRY" on the right-hand side
+rules_with_dairy_rhs <- subset(rules, rhs %in% "DAIRY")
+
+#Sort the subset of rules by descending order of lift
+sorted_rules_by_lift <- sort(rules_with_dairy_rhs, by = "lift", decreasing = TRUE)
+
+#Inspect the sorted rules
+inspect(sorted_rules_by_lift)
+
+
+#3.B
+#I. Start with adjusted thresholds to aim for 100 to 200 rules
+rules <- apriori(Walmart_trans,
+                 parameter = list(supp = 0.03, conf = 0.7, target = "rules"))
+
+#Number of rules
+print(length(rules))
+
+#III. Rules in descending order of their confidence values
+#Sort the rules by confidence
+sorted_rules_by_conf <- sort(rules, by = "confidence", decreasing = TRUE)
+#Inspect the sorted rules
+print(inspect(sorted_rules_by_conf))
+
+#IV. New variable for rules with "PRODUCE" on the Left-Hand Side and inspect them in descending order of confidence:
+rules_with_produce_lhs <- subset(rules, lhs %pin% "PRODUCE")
+#Sort rules by confidence
+sorted_produce_rules_by_conf <- sort(rules_with_produce_lhs, by = "confidence", decreasing = TRUE)
+#Inspect sorted rules
+print(inspect(sorted_produce_rules_by_conf))
+
+
+
+
+
+```
+
+
+
+
+
