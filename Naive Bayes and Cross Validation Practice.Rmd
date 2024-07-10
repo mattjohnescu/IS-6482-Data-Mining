@@ -1,0 +1,240 @@
+---
+title: "A2_Johnescu_Matthew"
+author: "Matt Johnescu"
+date: "2024-02-28"
+output: html_document
+---
+
+#Code Chunk 1
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#1.A
+#installing missing packages
+options(repos = c(CRAN = "https://cran.r-project.org"))
+install.packages("e1071")
+install.packages("caret")
+install.packages("C50")
+install.packages("matrixStats")
+install.packages("knitr")
+
+#loading Packages
+library(rmarkdown)
+library(caret)
+library(e1071)
+library(C50)
+library(matrixStats)
+library(knitr)
+
+#Loading and assigning the CSV
+churn2 <- read.csv(file = "C:/Users/johne/Downloads/churn2-1.csv")
+
+#factoring strings
+churn2$COLLEGE <- factor(churn2$COLLEGE)
+churn2$REPORTED_SATISFACTION <- factor(churn2$REPORTED_SATISFACTION)
+churn2$REPORTED_USAGE_LEVEL <- factor(churn2$REPORTED_USAGE_LEVEL)
+churn2$CONSIDERING_CHANGE_OF_PLAN <- factor(churn2$CONSIDERING_CHANGE_OF_PLAN)
+churn2$LEAVE <- factor(churn2$LEAVE)
+
+#Checking factors and showing data summary
+summary(churn2)
+str(churn2)
+
+#1.B
+
+#partitioning data with create data partition function.  
+set.seed(555)
+trainIndex <- createDataPartition(churn2$LEAVE, p = .7, list = FALSE, times = 1)
+
+#Create the training data set
+train_churn <- churn2[trainIndex, ]
+
+#Create the testing data set
+test_churn <- churn2[-trainIndex, ]
+
+
+#1.C
+
+#For the entire dataset: churn2
+entire_set_dist <- prop.table(table(churn2$LEAVE))
+print("Distribution in the entire dataset:")
+print(entire_set_dist)
+
+#For the training set: train_churn
+train_set_dist <- prop.table(table(train_churn$LEAVE))
+print("Distribution in the training set:")
+print(train_set_dist)
+
+#For the test set: test_churn
+test_set_dist <- prop.table(table(test_churn$LEAVE))
+print("Distribution in the test set:")
+print(test_set_dist)
+
+```
+#Code Chunk 2
+
+```{r}
+#2.A
+#model formula
+formula <- LEAVE ~ .
+
+#C5.0 model
+c5_model <- C5.0(formula, data = train_churn)
+
+print(c5_model)
+
+#2.B
+#model formula
+formula <- LEAVE ~ .
+
+#C5.0 model
+cf_level <- 0.15 
+c5_model2 <- C5.0(formula, data = train_churn, control = C5.0Control(CF = cf_level))
+
+print(c5_model)
+
+#Generate predictions for training and testing sets
+train_predictions <- predict(c5_model2, train_churn)
+test_predictions <- predict(c5_model2, test_churn)
+
+#Generating confusion matrices
+#For the training set
+train_confusion_matrix <- table(train_churn$LEAVE, train_predictions)
+print("Confusion Matrix for Training Set:")
+print(train_confusion_matrix)
+
+#For the testing set
+test_confusion_matrix <- table(test_churn$LEAVE, test_predictions)
+print("Confusion Matrix for Testing Set:")
+print(test_confusion_matrix)
+
+#Calculating evaluation metrics
+train_accuracy <- sum(diag(train_confusion_matrix)) / sum(train_confusion_matrix)
+test_accuracy <- sum(diag(test_confusion_matrix)) / sum(test_confusion_matrix)
+
+print(paste("Training set accuracy:", train_accuracy))
+print(paste("Testing set accuracy:", test_accuracy))
+
+```
+
+#Code Chunk 3
+
+```{r}
+#3.A
+#making model
+model <- naiveBayes(LEAVE ~ ., data = train_churn)
+
+print(model)
+
+#Predictions
+predictions_train <- predict(model, train_churn)
+predictions_test <- predict(model, test_churn)
+
+#Comparing Confusion Matrices:
+
+confMatrix_train <- confusionMatrix(predictions_train, train_churn$LEAVE)
+confMatrix_test <- confusionMatrix(predictions_test, test_churn$LEAVE)
+
+print(confMatrix_train)
+print(confMatrix_test)
+
+#3.B
+#Making model
+model2 <- naiveBayes(LEAVE ~ . - OVER_15MINS_CALLS_PER_MONTH, data = train_churn)
+
+print(model2)
+
+#Predictions
+predictions_train2 <- predict(model2, train_churn)
+predictions_test2 <- predict(model2, test_churn)
+
+#Comparing Confusion Matrices:
+
+confMatrix_train2 <- confusionMatrix(predictions_train2, train_churn$LEAVE)
+confMatrix_test2 <- confusionMatrix(predictions_test2, test_churn$LEAVE)
+
+print(confMatrix_train2)
+print(confMatrix_test2)
+
+
+```
+
+#Code Chunk 4
+
+```{r}
+
+#Cross Validation Function
+cv_function <- function(df, target, nFolds, classification, seedVal = 128) {
+  set.seed(seedVal)
+  targetVar <- df[[target]]
+  folds <- createFolds(targetVar, k = nFolds, list = TRUE)
+  
+  cv_results <- lapply(folds, function(x) {
+    train <- df[-x, ]
+    test <- df[x, ]
+    
+    formula <- as.formula(paste(target, "~ ."))
+    classification_model <- classification(formula, data = train)
+    
+    predictions <- predict(classification_model, test)
+    actuals <- test[[target]]
+    
+#Using confusion Matrix to calculate metrics
+    cm <- confusionMatrix(as.factor(predictions), as.factor(actuals))
+    metrics <- list(Accuracy = cm$overall['Accuracy'], 
+                    Precision = cm$byClass['Pos Pred Value'], 
+                    Recall = cm$byClass['Sensitivity'], 
+                    F1 = 2 * (cm$byClass['Pos Pred Value'] * cm$byClass['Sensitivity']) / (cm$byClass['Pos Pred Value'] + cm$byClass['Sensitivity']))
+    return(metrics)
+  })
+  
+  return(cv_results)
+}
+
+```
+
+#Code Chunk 5
+
+```{r}
+#For 5-Fold Cross-Validation
+results_5fold <- cv_function(df = churn2, target = "LEAVE", nFolds = 5, classification = naiveBayes, seedVal = 500)
+
+#For 10-Fold Cross-Validation
+results_10fold <- cv_function(df = churn2, target = "LEAVE", nFolds = 10, classification = naiveBayes, seedVal = 500)
+
+#Print results for 5-Fold Cross-Validation
+print("5 Fold")
+print(results_5fold)
+
+#Print results for 10-Fold Cross-Validation
+print("10 Fold")
+print(results_10fold)
+
+```
+
+#6.A
+Overage Usage: Customers with high overage charges are significantly more likely to churn. The average overage for leaving customers is 107.32 units compared to 66.08 units for those who stay.
+
+Handset Price: Customers with more expensive handsets exhibit a slightly higher churn rate. The average handset price for churned customers is $409.59 versus $374.02 for those who remain.
+
+Income Level: Higher-income customers tend to churn at a greater rate, with an average income of $85,406.89 for those who leave, against $76,731.77 for those who stay.
+
+Reported Satisfaction and Usage Level:
+Satisfaction: Customers reporting lower satisfaction (unsat, very unsat) show a greater tendency to churn. For example, the proportion of very unsatisfied leaving customers is 37.797% compared to 38.7246% for those who stay.
+
+Usage Level: Higher usage levels are associated with increased churn, with 10.7246% of leaving customers having high usage versus 10.1914% of staying customers.
+
+Considering Change of Plan: Customers actively looking into changing their plan (25.043%) or considering it (40.289%) show a higher propensity to churn compared to those who have never thought about it (10.5507%) or said no (19.5362%).
+
+#6.B
+Problem Addressed:
+High overage charges are a major cause of customer dissatisfaction and churn, particularly among those frequently exceeding their plan limits.
+
+Strategy:
+Tiered Overage Protection Options: Introduce a range of overage protection tiers, from basic alerts and discounted overage rates to premium unlimited overage protection, catering to diverse customer needs and usage patterns.
+
+Customizable Alerts and Caps: Beyond basic alerts, offer customers the ability to set personalized usage caps that, once reached, either throttle data speeds to prevent overage or automatically switch them to a temporary higher data allowance tier at a pro-rated cost. This customization empowers customers with control over their usage and expenses.
+
+Dynamic Overage Protection: Implement a dynamic overage protection system that automatically adjusts to the customer's usage patterns. For instance, if a customer consistently goes over their data limit towards the end of their billing cycle, the system could offer a temporary data boost option at a lower cost than standard overage rates.
+

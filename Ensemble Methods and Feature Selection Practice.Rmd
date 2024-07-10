@@ -1,0 +1,140 @@
+---
+title: "A6_Johnescu_Matthew"
+author: "Matt Johnescu"
+date: "2024-04-12"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+#Code Chunk 1
+#1.A
+
+library(RWeka)
+library(caret)
+library(rminer)
+library(randomForest)
+
+
+carAuction <- read.csv("C:/Users/johne/Downloads/carAuction-1.csv", stringsAsFactors = TRUE)
+
+summary(carAuction)
+
+#1.B
+#Proportions of IsBadBuy and carAuction
+table(carAuction$IsBadBuy) / nrow(carAuction)
+
+#1.C
+set.seed(123) # Ensure reproducibility
+index <- createDataPartition(carAuction$IsBadBuy, p = .70, list = FALSE)
+trainSet <- carAuction[index,]
+testSet <- carAuction[-index,]
+```
+
+
+```{r}
+#2.A
+#Forest Model
+rfModelDefault <- randomForest(IsBadBuy ~ ., data = trainSet)
+print(rfModelDefault)
+
+#2.B
+#Evaluation Metrics
+predTrainDefault <- predict(rfModelDefault, trainSet)
+confusionMatrix(predTrainDefault, trainSet$IsBadBuy)
+
+predTestDefault <- predict(rfModelDefault, testSet)
+confusionMatrix(predTestDefault, testSet$IsBadBuy)
+
+#2.C
+#Train Model With 50 Trees
+rfTrainModel50 <- randomForest(IsBadBuy ~ ., data = trainSet, ntree = 50)
+print(rfTrainModel50)
+
+#Test Model With 50 Trees
+rfTestModel50 <- randomForest(IsBadBuy ~ ., data = testSet, ntree = 50)
+print(rfTestModel50)
+
+
+#2.D
+#Evaluation on Training Set
+predTrainDefault <- predict(rfTrainModel50, trainSet)
+confusionMatrix(predTrainDefault, trainSet$IsBadBuy)
+
+#Evaluation on Test Set
+predTestDefault <- predict(rfTestModel50, testSet)
+confusionMatrix(predTestDefault, testSet$IsBadBuy)
+
+
+```
+
+
+
+```{r}
+#3.A
+#AdaBoostM1 Model
+adaModelDefault <- AdaBoostM1(IsBadBuy ~ ., data = trainSet)
+print(adaModelDefault)
+summary(adaModelDefault)
+
+#3.B
+
+#Predictions on Train Data
+trainPredAda <- predict(adaModelDefault, trainSet)
+trainConfMatAda <- confusionMatrix(trainPredAda, trainSet$IsBadBuy)
+
+#Predictions on Test Data
+testPredAda <- predict(adaModelDefault, testSet)
+testConfMatAda <- confusionMatrix(testPredAda, testSet$IsBadBuy)
+
+#Evaluation metrics for Training Set
+print("AdaBoostM1 Model Evaluation on Training Set:")
+print(paste("Accuracy:", trainConfMatAda$overall['Accuracy']))
+print(paste("True Positive Rate:", trainConfMatAda$byClass['Sensitivity']))
+print(paste("Precision:", trainConfMatAda$byClass['Precision']))
+print(paste("F1 Score:", trainConfMatAda$byClass['F1']))
+
+#Evaluation metrics for Testing Set
+print("AdaBoostM1 Model Evaluation on Testing Set:")
+print(paste("Accuracy:", testConfMatAda$overall['Accuracy']))
+print(paste("True Positive Rate:", testConfMatAda$byClass['Sensitivity']))
+print(paste("Precision:", testConfMatAda$byClass['Precision']))
+print(paste("F1 Score:", testConfMatAda$byClass['F1']))
+```
+
+
+```{r}
+#4.A
+#Bagging Model
+bagModelDefault <- Bagging(IsBadBuy ~ ., data = trainSet)
+print(bagModelDefault)
+summary(bagModelDefault)
+
+#4.B
+#Predictions on Training Data
+trainPredBag <- predict(bagModelDefault, trainSet)
+trainConfMatBag <- confusionMatrix(trainPredBag, trainSet$IsBadBuy)
+
+#Predictions on Testing Data
+testPredBag <- predict(bagModelDefault, testSet)
+testConfMatBag <- confusionMatrix(testPredBag, testSet$IsBadBuy)
+
+#Evaluation metrics for Training Set
+print("Bagging Model Evaluation on Training Set:")
+print(paste("Accuracy:", trainConfMatBag$overall['Accuracy']))
+print(paste("True Positive Rate:", trainConfMatBag$byClass['Sensitivity']))
+print(paste("Precision:", trainConfMatBag$byClass['Precision']))
+print(paste("F1 Score:", trainConfMatBag$byClass['F1']))
+
+#Evaluation metrics for Testing Set
+print("Bagging Model Evaluation on Testing Set:")
+print(paste("Accuracy:", testConfMatBag$overall['Accuracy']))
+print(paste("True Positive Rate:", testConfMatBag$byClass['Sensitivity']))
+print(paste("Precision:", testConfMatBag$byClass['Precision']))
+print(paste("F1 Score:", testConfMatBag$byClass['F1']))
+```
+
+
+
+
+
