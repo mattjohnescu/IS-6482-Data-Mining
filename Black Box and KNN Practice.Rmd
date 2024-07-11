@@ -1,0 +1,349 @@
+---
+title: "A4_Johnescu_Matthew"
+author: "Matt Johnescu"
+date: "2024-03-28"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#1.A
+options(repos = c(CRAN = "https://cran.r-project.org"))
+install.packages("MLmetrics")
+#loading Packages
+library(rmarkdown)
+library(caret)
+library(kernlab)
+library(RWeka)
+library(rminer)
+library(matrixStats)
+library(MLmetrics)
+library(knitr)
+library(MLmetrics)
+
+#Loading and assigning the CSV
+churn2 <- read.csv(file = "C:/Users/johne/Downloads/churn2-1.csv")
+
+#factoring strings
+churn2$COLLEGE <- factor(churn2$COLLEGE)
+churn2$REPORTED_SATISFACTION <- factor(churn2$REPORTED_SATISFACTION)
+churn2$REPORTED_USAGE_LEVEL <- factor(churn2$REPORTED_USAGE_LEVEL)
+churn2$CONSIDERING_CHANGE_OF_PLAN <- factor(churn2$CONSIDERING_CHANGE_OF_PLAN)
+churn2$LEAVE <- factor(churn2$LEAVE)
+
+#1.B
+
+#partitioning data with create data partition function.  
+set.seed(555)
+trainIndex <- createDataPartition(churn2$LEAVE, p = .7, list = FALSE, times = 1)
+
+#Create the training data set
+train_churn <- churn2[trainIndex, ]
+
+#Create the testing data set
+test_churn <- churn2[-trainIndex, ]
+```
+
+
+```{r}
+#2.A 
+
+#checking for factors again
+train_churn$LEAVE <- as.factor(train_churn$LEAVE)
+
+# Define training control
+trControl <- trainControl(
+  method = "repeatedcv", #repeated cross-validation
+  number = 10, #number of cross-validation folds
+  repeats = 3, #repeats for repeated cross-validation
+  summaryFunction = defaultSummary, #summary function
+  classProbs = TRUE
+)
+
+#training the MLP model with nnet
+mlp_model <- train(LEAVE ~ ., data = train_churn, method = "nnet",
+                   trControl = trControl,
+                   linout = FALSE, 
+                   trace = FALSE,
+                   tuneGrid = expand.grid(.size = c(1, 5, 10), .decay = c(0, 0.001, 0.01)))
+
+#model summary
+print(mlp_model)
+
+#2.B 
+#Predictions on the training set
+predictions_train <- predict(mlp_model, newdata = train_churn)
+
+#Predictions on the test set
+predictions_test <- predict(mlp_model, newdata = test_churn)
+
+#confusion matrix for the training set
+confusionMatrix_train <- confusionMatrix(predictions_train, train_churn$LEAVE)
+print(confusionMatrix_train)
+
+#confusion matrix for the test set
+confusionMatrix_test <- confusionMatrix(predictions_test, test_churn$LEAVE)
+print(confusionMatrix_test)
+
+```
+
+```{r}
+#3.A
+#KSVM model
+svm_model <- ksvm(LEAVE ~ ., data = train_churn)
+
+#Predictions on the training set
+predictions_train <- predict(svm_model, newdata = train_churn)
+
+#Predictions on the test set
+predictions_test <- predict(svm_model, newdata = test_churn)
+
+#checking for factoring again (I had issues with this the whole assignment for some reason)
+predictions_train <- factor(predictions_train, levels = levels(train_churn$LEAVE))
+actuals_train <- factor(train_churn$LEAVE, levels = levels(predictions_train))
+
+predictions_test <- factor(predictions_test, levels = levels(test_churn$LEAVE))
+actuals_test <- factor(test_churn$LEAVE, levels = levels(predictions_test))
+
+#confusion matrix for the training set
+confusionMatrix_train <- confusionMatrix(predictions_train, actuals_train)
+print(confusionMatrix_train)
+
+#confusion matrix for the test set
+confusionMatrix_test <- confusionMatrix(predictions_test, actuals_test)
+print(confusionMatrix_test)
+
+
+#3.B
+#SVM model using ksvm() with polynomial kernel and C=10
+svm_model_poly <- ksvm(LEAVE ~ ., data = train_churn, kernel = "polydot", C = 10)
+
+#Predictions on the training set
+predictions_train_poly <- predict(svm_model_poly, newdata = train_churn)
+
+#Predictions on the test set
+predictions_test_poly <- predict(svm_model_poly, newdata = test_churn)
+
+#Convert predictions and actuals to factors
+predictions_train_poly <- factor(predictions_train_poly, levels = levels(train_churn$LEAVE))
+actuals_train_poly <- factor(train_churn$LEAVE, levels = levels(predictions_train_poly))
+
+predictions_test_poly <- factor(predictions_test_poly, levels = levels(test_churn$LEAVE))
+actuals_test_poly <- factor(test_churn$LEAVE, levels = levels(predictions_test_poly))
+
+#onfusion matrix for the training set
+confusionMatrix_train_poly <- confusionMatrix(predictions_train_poly, actuals_train_poly)
+cat("Training Set Evaluation Metrics with Poly Kernel:\n")
+print(confusionMatrix_train_poly)
+
+#confusion matrix for the test set
+confusionMatrix_test_poly <- confusionMatrix(predictions_test_poly, actuals_test_poly)
+cat("Test Set Evaluation Metrics with Poly Kernel:\n")
+print(confusionMatrix_test_poly)
+```
+
+```{r}
+#4.A
+#Bk model with specified parameters
+ibk_model <- IBk(LEAVE ~ ., data = train_churn,
+                 control = Weka_control(K = 30, I = TRUE, X = TRUE))
+
+#Predictions on the training set
+predictions_train_ibk <- predict(ibk_model, newdata = train_churn)
+
+#Predictions on the test set
+predictions_test_ibk <- predict(ibk_model, newdata = test_churn)
+
+#Convert predictions and actuals to factors
+predictions_train_ibk <- factor(predictions_train_ibk, levels = levels(train_churn$LEAVE))
+actuals_train_ibk <- factor(train_churn$LEAVE, levels = levels(predictions_train_ibk))
+
+predictions_test_ibk <- factor(predictions_test_ibk, levels = levels(test_churn$LEAVE))
+actuals_test_ibk <- factor(test_churn$LEAVE, levels = levels(predictions_test_ibk))
+
+#confusion matrix for the training set
+confusionMatrix_train_ibk <- confusionMatrix(predictions_train_ibk, actuals_train_ibk)
+cat("Training Set Evaluation Metrics for IBk Model:\n")
+print(confusionMatrix_train_ibk)
+
+#confusion matrix for the test set
+confusionMatrix_test_ibk <- confusionMatrix(predictions_test_ibk, actuals_test_ibk)
+cat("Test Set Evaluation Metrics for IBk Model:\n")
+print(confusionMatrix_test_ibk)
+```
+
+```{r}
+#5.A and 5.B
+
+#IBK Model
+cv_function_ibk <- function(df, target, nFolds, seedVal, metrics_list, K, I, X) {
+  require(caret)
+  require(RWeka)
+  
+  set.seed(seedVal)
+  formula <- as.formula(paste(target, "~ ."))
+  df[[target]] <- as.factor(df[[target]])
+  
+  folds <- createFolds(df[[target]], k = nFolds, list = TRUE, returnTrain = FALSE)
+  metrics <- matrix(NA, nrow = nFolds, ncol = length(metrics_list), dimnames = list(NULL, metrics_list))
+  
+  for(i in seq_along(folds)) {
+    testData <- df[folds[[i]], ]
+    trainData <- df[-folds[[i]], ]
+    
+    model <- IBk(formula, data = trainData, control = Weka_control(K = K, I = I, X = X))
+    predictions <- predict(model, newdata = testData)
+    
+    cm <- confusionMatrix(predictions, testData[[target]])
+    for(metric in metrics_list) {
+      metrics[i, metric] <- cm$overall[metric]
+    }
+  }
+  
+  performance_summary <- data.frame(
+    Metric = metrics_list,
+    Mean = colMeans(metrics, na.rm = TRUE),
+    SD = apply(metrics, 2, sd, na.rm = TRUE)
+  )
+  
+  list(fold_metrics = metrics, performance_summary = performance_summary)
+}
+
+
+
+#MLP Model
+cv_function_mlp <- function(df, target, nFolds, seedVal, metrics_list, size, decay) {
+  require(caret)
+  
+  set.seed(seedVal)
+  formula <- as.formula(paste(target, "~ ."))
+  df[[target]] <- as.factor(df[[target]])
+  
+  trControl <- trainControl(
+    method = "cv",
+    number = nFolds,
+    summaryFunction = multiClassSummary,
+    classProbs = TRUE,
+    savePredictions = "final",
+    verboseIter = FALSE
+  )
+  
+  tuneGrid <- expand.grid(.size = size, .decay = decay)
+  
+  mlp_model <- train(formula, data = df, method = "nnet",
+                     trControl = trControl,
+                     linout = FALSE, 
+                     trace = FALSE,
+                     tuneGrid = tuneGrid)
+  
+  results <- mlp_model$results
+  fold_performance <- mlp_model$resample
+  
+  performance_summary <- data.frame(
+    Metric = metrics_list,
+    Mean = sapply(metrics_list, function(metric) mean(fold_performance[[metric]], na.rm = TRUE)),
+    SD = sapply(metrics_list, function(metric) sd(fold_performance[[metric]], na.rm = TRUE))
+  )
+  
+  list(model = mlp_model, fold_performance = fold_performance, performance_summary = performance_summary)
+}
+
+
+
+#KSVM Model
+cv_function_ksvm <- function(df, target, nFolds, seedVal, metrics_list, C = 1, sigma = 0.1) {
+  require(caret)
+  require(kernlab)
+  
+  set.seed(seedVal)
+  formula <- as.formula(paste(target, "~ ."))
+  df[[target]] <- as.factor(df[[target]])
+  
+#Ensuring summary Function aligns with the binary classification
+  trControl <- trainControl(
+    method = "cv",
+    number = nFolds,
+    summaryFunction = twoClassSummary, #For binary predictors
+    classProbs = TRUE,
+    savePredictions = "final",
+    verboseIter = FALSE,
+    preProcOptions = list(thresh = 0.5) 
+  )
+  
+  #Pre-processing data
+  preProcessParams <- preProcess(df, method = c("center", "scale", "nzv"))
+  df <- predict(preProcessParams, df)
+  
+  tuneGrid <- expand.grid(.C = C, .sigma = sigma)
+  
+  svm_model <- train(formula, data = df, method = "svmRadial",
+                      trControl = trControl,
+                      metric = "ROC",
+                      tuneGrid = tuneGrid,
+                      preProcess = c("center", "scale"))
+  
+  results <- svm_model$results
+  fold_performance <- svm_model$resample
+  
+  #summary calculation
+  performance_summary <- sapply(metrics_list, function(metric) {
+    c(Mean = mean(fold_performance[[metric]], na.rm = TRUE),
+      SD = sd(fold_performance[[metric]], na.rm = TRUE))
+  })
+  
+  list(model = svm_model, fold_performance = fold_performance, performance_summary = performance_summary)
+}
+
+
+
+
+
+
+
+
+```
+
+```{r}
+#6.A
+#invocation for the MLP model
+metrics_list <- c("Accuracy", "Kappa")
+mlp_results <- cv_function_mlp(df = test_churn, target = "LEAVE",
+                               nFolds = 10, seedVal = 123, metrics_list = metrics_list,
+                               size = c(1, 5, 10), decay = c(0, 0.001, 0.01))
+
+#performance summary
+print(mlp_results)
+
+#6.B
+
+#Metrics list
+metrics_list_ksvm <- c("ROC", "Sens", "Spec")
+
+#Invoking the function
+ksvm_results <- cv_function_ksvm(df = test_churn, 
+                                  target = "LEAVE", 
+                                  nFolds = 10, 
+                                  seedVal = 123, 
+                                  metrics_list = metrics_list_ksvm, 
+                                  C = 1, 
+                                  sigma = 0.1)
+
+#performance summary
+print(ksvm_results)
+
+#6.C
+metrics_list_ibk <- c("Accuracy", "Kappa")
+
+#Calling the IBk cross-validation function
+ibk_results <- cv_function_ibk(df = test_churn, target = "LEAVE",
+                               nFolds = 10, seedVal = 123, metrics_list = metrics_list_ibk,
+                               K = 5, I = TRUE, X = TRUE)
+
+#performance summary for IBk
+print(ibk_results)
+
+```
+
+
+
